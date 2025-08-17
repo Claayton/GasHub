@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView } from 'react-native';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
@@ -11,10 +11,9 @@ export default function ListOrdersScreen({ navigation }) {
 
   useEffect(() => {
     const pedidosRef = collection(db, 'pedidos');
-    const q = query(pedidosRef, orderBy('timestamp', 'desc'));
 
     const unsubscribe = onSnapshot(
-      q,
+      pedidosRef,
       (querySnapshot) => {
         const fetchedPedidos = [];
         querySnapshot.forEach((doc) => {
@@ -23,6 +22,10 @@ export default function ListOrdersScreen({ navigation }) {
             ...doc.data(),
           });
         });
+
+        // Ordenar os pedidos em memória por timestamp mais recente
+        fetchedPedidos.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
         setPedidos(fetchedPedidos);
         setLoading(false);
       },
@@ -47,32 +50,47 @@ export default function ListOrdersScreen({ navigation }) {
   // Filtra os pedidos
   const pedidosFiltrados = pedidos.filter((item) => {
     if (filtro === 'Todos') return true;
-    if (filtro === 'Fiados') return item.formaPagamento === 'Fiado';
-    if (filtro === 'Pagos') return item.formaPagamento !== 'Fiado';
+    if (filtro === 'Fiados') return item.paymentMethod === 'Fiado';
+    if (filtro === 'Pagos') return item.paymentMethod !== 'Fiado';
   });
 
   const renderItem = ({ item }) => {
-    const isFiado = item.formaPagamento === 'Fiado';
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.clientName}>{item.nome}</Text>
-          <View style={[styles.badge, { backgroundColor: isFiado ? '#f0ad4e' : '#5cb85c' }]}>
-            <Text style={styles.badgeText}>{item.formaPagamento}</Text>
-          </View>
+  const isFiado = item.paymentMethod === 'Fiado';
+  const valorExibir = item.pendingValue || item.totalValue || '0,00';
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.clientName}>{item.customerName}</Text>
+        <View style={[styles.badge, { backgroundColor: isFiado ? '#f0ad4e' : '#5cb85c' }]}>
+          <Text style={styles.badgeText}>{item.paymentMethod}</Text>
         </View>
-        <Text style={styles.productText}>{item.produto} • {item.quantidade} un.</Text>
-        <Text style={styles.addressText}>{item.endereco}</Text>
-        {isFiado && (
-          <View style={styles.fiadoInfo}>
-            <Text style={styles.fiadoText}>💰 R$ {item.valorPendente}</Text>
-            <Text style={styles.fiadoText}>📅 Vencimento: {item.dataVencimento}</Text>
-          </View>
-        )}
-        <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleString()}</Text>
       </View>
-    );
-  };
+
+      {/* Lista de produtos */}
+      <View style={styles.productsList}>
+        {item.products.map((product, index) => (
+          <Text key={index} style={styles.productText}>
+            • {product.name} ({product.quantity} un.)
+          </Text>
+        ))}
+      </View>
+
+      <Text style={styles.addressText}>{item.address}</Text>
+
+      {/* Exibir valor para todos */}
+      <Text style={styles.fiadoText}>💰 Valor: R$ {valorExibir}</Text>
+
+      {/* Info extra só para Fiado */}
+      {isFiado && item.dueDate && (
+        <Text style={styles.fiadoText}>📅 Vencimento: {new Date(item.dueDate).toLocaleDateString()}</Text>
+      )}
+
+      <Text style={styles.dateText}>Pedido em: {new Date(item.timestamp).toLocaleString()}</Text>
+    </View>
+  );
+};
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,9 +104,10 @@ export default function ListOrdersScreen({ navigation }) {
           <Text style={styles.buttonText}>Adicionar</Text>
         </TouchableOpacity>
 
+        {/* Botão para "Fiados" agora é apenas um filtro */}
         <TouchableOpacity
           style={[styles.customButton, { backgroundColor: '#f0ad4e' }]}
-          onPress={() => navigation.navigate('Fiado')}
+          onPress={() => setFiltro('Fiados')}
         >
           <Icon name="money-bill-wave" size={18} color="#fff" style={styles.icon} />
           <Text style={styles.buttonText}>Fiados</Text>
@@ -210,10 +229,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  productsList: {
+    marginBottom: 4,
+  },
   productText: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 4,
   },
   addressText: {
     fontSize: 14,
