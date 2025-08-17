@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Button } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
@@ -13,20 +13,24 @@ export default function ListOrdersScreen({ navigation }) {
     const q = query(pedidosRef, orderBy('timestamp', 'desc'));
 
     // Listener para buscar os pedidos em tempo real
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fetchedPedidos = [];
-      querySnapshot.forEach((doc) => {
-        fetchedPedidos.push({
-          id: doc.id,
-          ...doc.data(),
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const fetchedPedidos = [];
+        querySnapshot.forEach((doc) => {
+          fetchedPedidos.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
-      setPedidos(fetchedPedidos);
-      setLoading(false);
-    }, (error) => {
-      console.error('Erro ao buscar pedidos: ', error);
-      setLoading(false);
-    });
+        setPedidos(fetchedPedidos);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Erro ao buscar pedidos: ', error);
+        setLoading(false);
+      }
+    );
 
     // Desinscreve o listener quando o componente é desmontado
     return () => unsubscribe();
@@ -45,11 +49,23 @@ export default function ListOrdersScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Pedidos Recentes</Text>
-        <Button
-          title="Adicionar Pedido"
-          onPress={() => navigation.navigate('AddOrder')}
-        />
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.customButton}
+            onPress={() => navigation.navigate('AddOrder')}
+          >
+            <Text style={styles.buttonText}>Adicionar Pedido</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.customButton}
+            onPress={() => navigation.navigate('Fiado')}
+          >
+            <Text style={styles.buttonText}>Fiados</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       <FlatList
         data={pedidos}
         keyExtractor={(item) => item.id}
@@ -66,7 +82,9 @@ export default function ListOrdersScreen({ navigation }) {
                 <Text style={styles.pedidoText}>Vencimento: {item.dataVencimento}</Text>
               </View>
             )}
-            <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleString()}</Text>
+            <Text style={styles.dateText}>
+              {new Date(item.timestamp).toLocaleString()}
+            </Text>
           </View>
         )}
       />
@@ -81,17 +99,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 15,
   },
   loadingText: {
     marginTop: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  customButton: {
+    backgroundColor: '#007bff',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   pedidoItem: {
     backgroundColor: '#fff',

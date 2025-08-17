@@ -8,7 +8,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import AddOrderScreen from './AddOrderScreen';
-import ListOrdersScreen from './ListOrdersScreen.js'; // Importa a tela de listagem
+import ListOrdersScreen from './ListOrdersScreen';
+import FiadoScreen from './FiadoScreen'; // Importa a nova tela de fiados
 
 // Importa a configuração e os objetos de autenticação já inicializados
 import { auth } from './firebaseConfig';
@@ -52,6 +53,7 @@ export default function App() {
           <>
             <Stack.Screen name="ListOrders" component={ListOrdersScreen} />
             <Stack.Screen name="AddOrder" component={AddOrderScreen} />
+            <Stack.Screen name="Fiado" component={FiadoScreen} />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthStack} />
