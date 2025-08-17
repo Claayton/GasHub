@@ -3,44 +3,42 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { collection, onSnapshot, query, where, updateDoc, doc } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
-export default function FiadoScreen({ navigation }) {
+export default function FiadoScreen() {
   const [fiadoPedidos, setFiadoPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Referência para a coleção 'pedidos'
     const pedidosRef = collection(db, 'pedidos');
     const q = query(pedidosRef, where('formaPagamento', '==', 'Fiado'));
 
-    // Listener para buscar os pedidos fiados em tempo real
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fetchedPedidos = [];
-      querySnapshot.forEach((document) => {
-        fetchedPedidos.push({
-          id: document.id,
-          ...document.data(),
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const fetchedPedidos = [];
+        querySnapshot.forEach((doc) => {
+          fetchedPedidos.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
-      setFiadoPedidos(fetchedPedidos);
-      setLoading(false);
-    }, (error) => {
-      console.error('Erro ao buscar pedidos fiados: ', error);
-      setLoading(false);
-    });
+        setFiadoPedidos(fetchedPedidos);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Erro ao buscar pedidos fiados: ', error);
+        setLoading(false);
+      }
+    );
 
-    // Desinscreve o listener quando o componente é desmontado
     return () => unsubscribe();
   }, []);
 
-  const handleMarkAsPaid = async (pedidoId) => {
+  const handleMarkAsPaid = (pedidoId) => {
     Alert.alert(
       'Marcar como Pago',
       'Tem certeza que deseja marcar este pedido como pago?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Marcar como Pago',
           onPress: async () => {
@@ -65,7 +63,7 @@ export default function FiadoScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
         <Text style={styles.loadingText}>Carregando fiados...</Text>
       </View>
@@ -74,22 +72,27 @@ export default function FiadoScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Clientes Fiados</Text>
       <FlatList
         data={fiadoPedidos}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleMarkAsPaid(item.id)} style={styles.fiadoItem}>
+          <TouchableOpacity onPress={() => handleMarkAsPaid(item.id)} style={styles.card}>
             <View>
-              <Text style={styles.fiadoText}>Cliente: {item.nome}</Text>
-              <Text style={styles.fiadoText}>Valor Pendente: R$ {item.valorPendente}</Text>
-              <Text style={styles.fiadoText}>Vencimento: {item.dataVencimento}</Text>
+              <Text style={styles.clientName}>{item.nome}</Text>
+              <Text style={styles.fiadoText}>💰 R$ {item.valorPendente}</Text>
+              <Text style={styles.fiadoText}>📅 Vencimento: {item.dataVencimento}</Text>
             </View>
             <View style={styles.paidButton}>
               <Text style={styles.paidButtonText}>Pagar</Text>
             </View>
           </TouchableOpacity>
         )}
+        contentContainerStyle={{ paddingVertical: 10 }}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 30, color: '#666' }}>
+            Nenhum pedido fiado encontrado
+          </Text>
+        }
       />
     </View>
   );
@@ -98,37 +101,49 @@ export default function FiadoScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    padding: 16,
+    backgroundColor: '#f5f7fa',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
     marginTop: 10,
+    color: '#333',
   },
-  fiadoItem: {
+  card: {
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  clientName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 4,
   },
   fiadoText: {
-    fontSize: 16,
-    marginBottom: 5,
+    fontSize: 14,
+    color: '#b94a48',
+    fontWeight: '600',
   },
   paidButton: {
     backgroundColor: '#28a745',
-    padding: 10,
-    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   paidButtonText: {
     color: '#fff',
