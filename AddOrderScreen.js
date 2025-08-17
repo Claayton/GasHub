@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -18,11 +18,12 @@ const formatCurrency = (value) => {
   });
 };
 
-// Cria produto padrão
+// Cria produto padrão com um valor inicial de 0
 const createDefaultProduct = () => ({
   id: Date.now(),
   name: 'Botijão de 13kg',
   quantity: 1,
+  price: 'R$ 0,00',
 });
 
 export default function AddOrderScreen() {
@@ -42,6 +43,21 @@ export default function AddOrderScreen() {
     const unsubscribe = onAuthStateChanged(auth, () => setIsLoading(false));
     return () => unsubscribe();
   }, []);
+
+  // Calcula o valor total do pedido em tempo real
+  const totalValue = useMemo(() => {
+    const sum = products.reduce((acc, product) => {
+      const price = parseFloat(product.price.replace('R$', '').replace(',', '.'));
+      const quantity = parseInt(product.quantity, 10);
+      return acc + (isNaN(price) || isNaN(quantity) ? 0 : price * quantity);
+    }, 0);
+    return sum.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, [products]);
 
   const handleAddProduct = () => setProducts([...products, createDefaultProduct()]);
 
@@ -84,16 +100,23 @@ export default function AddOrderScreen() {
         setIsSubmitting(false);
         return;
       }
-    }
-
-    if (!orderData.pendingValue.trim()) {
-      Alert.alert('Erro', 'O valor é obrigatório.');
-      setIsSubmitting(false);
-      return;
+      if (parseFloat(product.price.replace('R$', '').replace(',', '.')) <= 0) {
+        Alert.alert('Erro', 'O valor de todos os produtos deve ser maior que zero.');
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     try {
-      const sanitizedProducts = products.map(p => ({ name: p.name, quantity: p.quantity }));
+      // Valor pendente será o valor total, a menos que seja um pedido "Fiado"
+      const finalPendingValue = orderData.paymentMethod === 'Fiado' ? orderData.pendingValue : totalValue;
+
+      const sanitizedProducts = products.map(p => ({
+        name: p.name,
+        quantity: p.quantity,
+        price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
+      }));
+
       const userId = auth.currentUser?.uid || 'anonymous';
 
       const newOrder = {
@@ -101,7 +124,8 @@ export default function AddOrderScreen() {
         address: orderData.address,
         products: sanitizedProducts,
         paymentMethod: orderData.paymentMethod,
-        pendingValue: orderData.pendingValue,
+        totalValue: parseFloat(totalValue.replace('R$', '').replace('.', '').replace(',', '.')), // Converte o valor total para número
+        pendingValue: parseFloat(finalPendingValue.replace('R$', '').replace('.', '').replace(',', '.')),
         timestamp: new Date().toISOString(),
         userId,
         status: 'pendente',
@@ -142,6 +166,7 @@ export default function AddOrderScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Bloco 1: Informações do Cliente */}
       <View style={styles.card}>
         <Text style={styles.label}>Nome do Cliente</Text>
         <TextInput
@@ -156,7 +181,69 @@ export default function AddOrderScreen() {
           value={orderData.address}
           onChangeText={(text) => setOrderData({ ...orderData, address: text })}
         />
+      </View>
 
+      {/* Bloco 2: Seção de Produtos */}
+      <View style={styles.productsContainer}>
+        {products.map((product, index) => (
+          <View key={product.id} style={styles.productCard}>
+            <Text style={styles.productLabel}>Produto {index + 1}</Text>
+            {products.length > 1 && (
+              <TouchableOpacity style={styles.removeProductButton} onPress={() => handleRemoveProduct(product.id)}>
+                <Text style={styles.removeProductButtonText}>Remover</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.label}>Nome do Produto</Text>
+            {Platform.OS === 'web' ? (
+              <select
+                value={product.name}
+                onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
+                style={styles.pickerWeb}
+              >
+                <option value="Botijão de 13kg">Botijão de 13kg</option>
+                <option value="Botijão de 5kg">Botijão de 5kg</option>
+                <option value="Água Mineral">Água Mineral</option>
+              </select>
+            ) : (
+              <Picker
+                selectedValue={product.name}
+                style={styles.picker}
+                onValueChange={(itemValue) => handleProductChange(product.id, 'name', itemValue)}
+              >
+                <Picker.Item label="Botijão de 13kg" value="Botijão de 13kg" />
+                <Picker.Item label="Botijão de 5kg" value="Botijão de 5kg" />
+                <Picker.Item label="Água Mineral" value="Água Mineral" />
+              </Picker>
+            )}
+
+            <Text style={styles.label}>Quantidade</Text>
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity style={styles.qtyButton} onPress={() => handleQuantityChange(product.id, -1)} disabled={product.quantity <= 1}>
+                <Text style={styles.qtyButtonText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityText}>{product.quantity}</Text>
+              <TouchableOpacity style={styles.qtyButton} onPress={() => handleQuantityChange(product.id, 1)}>
+                <Text style={styles.qtyButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Valor Unitário</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={product.price}
+              onChangeText={(text) => handleProductChange(product.id, 'price', formatCurrency(text))}
+            />
+          </View>
+        ))}
+        <TouchableOpacity style={styles.addProductButton} onPress={handleAddProduct}>
+          <Text style={styles.addProductButtonText}>Adicionar Produto</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bloco 3: Seção de Pagamento */}
+      <View style={styles.card}>
         <Text style={styles.label}>Forma de Pagamento</Text>
         {Platform.OS === 'web' ? (
           <select
@@ -182,14 +269,24 @@ export default function AddOrderScreen() {
           </Picker>
         )}
 
-        <Text style={styles.label}>Valor</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={orderData.pendingValue}
-          onChangeText={(text) => setOrderData({ ...orderData, pendingValue: formatCurrency(text) })}
-        />
-
+        {/* Valor Total */}
+        <Text style={styles.label}>Valor Total</Text>
+        {orderData.paymentMethod === 'Fiado' ? (
+          <TextInput
+            style={styles.highlightedInput} // Estilo alterado para destacar
+            keyboardType="numeric"
+            value={orderData.pendingValue}
+            onChangeText={(text) => setOrderData({ ...orderData, pendingValue: formatCurrency(text) })}
+          />
+        ) : (
+          <TextInput
+            style={styles.highlightedInput} // Estilo alterado para destacar
+            value={totalValue}
+            editable={false}
+          />
+        )}
+        
+        {/* Data de Vencimento (apenas para Fiado) */}
         {orderData.paymentMethod === 'Fiado' && (
           <>
             <Text style={styles.label}>Data de Vencimento</Text>
@@ -219,55 +316,7 @@ export default function AddOrderScreen() {
         )}
       </View>
 
-      {products.map((product, index) => (
-        <View key={product.id} style={styles.productCard}>
-          <Text style={styles.productLabel}>Produto {index + 1}</Text>
-          {products.length > 1 && (
-            <TouchableOpacity style={styles.removeProductButton} onPress={() => handleRemoveProduct(product.id)}>
-              <Text style={styles.removeProductButtonText}>Remover</Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={styles.label}>Nome do Produto</Text>
-          {Platform.OS === 'web' ? (
-            <select
-              value={product.name}
-              onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
-              style={styles.pickerWeb}
-            >
-              <option value="Botijão de 13kg">Botijão de 13kg</option>
-              <option value="Botijão de 5kg">Botijão de 5kg</option>
-              <option value="Água Mineral">Água Mineral</option>
-            </select>
-          ) : (
-            <Picker
-              selectedValue={product.name}
-              style={styles.picker}
-              onValueChange={(itemValue) => handleProductChange(product.id, 'name', itemValue)}
-            >
-              <Picker.Item label="Botijão de 13kg" value="Botijão de 13kg" />
-              <Picker.Item label="Botijão de 5kg" value="Botijão de 5kg" />
-              <Picker.Item label="Água Mineral" value="Água Mineral" />
-            </Picker>
-          )}
-
-          <Text style={styles.label}>Quantidade</Text>
-          <View style={styles.quantityContainer}>
-            <TouchableOpacity style={styles.qtyButton} onPress={() => handleQuantityChange(product.id, -1)} disabled={product.quantity <= 1}>
-              <Text style={styles.qtyButtonText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.quantityText}>{product.quantity}</Text>
-            <TouchableOpacity style={styles.qtyButton} onPress={() => handleQuantityChange(product.id, 1)}>
-              <Text style={styles.qtyButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ))}
-
-      <TouchableOpacity style={styles.addProductButton} onPress={handleAddProduct}>
-        <Text style={styles.addProductButtonText}>Adicionar Produto</Text>
-      </TouchableOpacity>
-
+      {/* Botão de Adicionar Pedido */}
       <TouchableOpacity style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} onPress={handleAddOrder} disabled={isSubmitting}>
         <Text style={styles.submitButtonText}>{isSubmitting ? 'Adicionando...' : 'Adicionar Pedido'}</Text>
       </TouchableOpacity>
@@ -294,6 +343,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
     marginBottom: 16,
+  },
+  productsContainer: {
+    marginBottom: 16
   },
   productCard: {
     backgroundColor: '#fff',
@@ -322,6 +374,17 @@ const styles = StyleSheet.create({
     marginTop: 5,
     backgroundColor: '#fff',
   },
+  highlightedInput: {
+    height: 50,
+    borderColor: '#007bff',
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginTop: 5,
+    backgroundColor: '#e6f2ff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   inputWebDate: {
     height: 40,
     borderColor: '#ccc',
@@ -334,17 +397,17 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   picker: {
-    height: 'auto', // Alterado para auto
+    height: 'auto',
     width: '100%',
     marginTop: 5,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    paddingVertical: 8, // Adicionado padding vertical
+    paddingVertical: 8,
   },
   pickerWeb: {
-    height: 'auto', // Alterado para auto
+    height: 'auto',
     width: '100%',
     marginTop: 5,
     backgroundColor: '#fff',
@@ -352,7 +415,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 8,
     padding: 8,
-    paddingVertical: 12, // Adicionado padding vertical
+    paddingVertical: 12,
   },
   quantityContainer: {
     flexDirection: 'row',
