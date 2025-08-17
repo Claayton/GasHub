@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './firebaseConfig';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 
 export default function ListOrdersScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Referência para a coleção 'pedidos'
     const pedidosRef = collection(db, 'pedidos');
     const q = query(pedidosRef, orderBy('timestamp', 'desc'));
 
-    // Listener para buscar os pedidos em tempo real
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
@@ -32,7 +31,6 @@ export default function ListOrdersScreen({ navigation }) {
       }
     );
 
-    // Desinscreve o listener quando o componente é desmontado
     return () => unsubscribe();
   }, []);
 
@@ -54,13 +52,15 @@ export default function ListOrdersScreen({ navigation }) {
             style={styles.customButton}
             onPress={() => navigation.navigate('AddOrder')}
           >
-            <Text style={styles.buttonText}>Adicionar Pedido</Text>
+            <Icon name="plus" size={18} color="#fff" style={styles.icon} />
+            <Text style={styles.buttonText}>Adicionar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.customButton}
             onPress={() => navigation.navigate('Fiado')}
           >
+            <Icon name="money-bill-wave" size={18} color="#fff" style={styles.icon} />
             <Text style={styles.buttonText}>Fiados</Text>
           </TouchableOpacity>
         </View>
@@ -120,6 +120,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flex: 1,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  icon: {
+    marginRight: 6,
   },
   buttonText: {
     color: '#fff',
