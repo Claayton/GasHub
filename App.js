@@ -8,22 +8,10 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import AddOrderScreen from './AddOrderScreen';
+import ListOrdersScreen from './ListOrdersScreen.js'; // Importa a tela de listagem
 
 // Importa a configuração e os objetos de autenticação já inicializados
 import { auth } from './firebaseConfig';
-
-// Componente temporário para a tela principal
-function HomeScreen({ navigation }) {
-  return (
-    <View style={styles.container}>
-      <Text>Bem-vindo ao GásHub!</Text>
-      <Button
-        title="Adicionar Pedido"
-        onPress={() => navigation.navigate('AddOrder')}
-      />
-    </View>
-  );
-}
 
 const Stack = createStackNavigator();
 
@@ -62,7 +50,7 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="ListOrders" component={ListOrdersScreen} />
             <Stack.Screen name="AddOrder" component={AddOrderScreen} />
           </>
         ) : (

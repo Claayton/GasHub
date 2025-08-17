@@ -1,0 +1,112 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Button } from 'react-native';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+
+export default function ListOrdersScreen({ navigation }) {
+  const [pedidos, setPedidos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Referência para a coleção 'pedidos'
+    const pedidosRef = collection(db, 'pedidos');
+    const q = query(pedidosRef, orderBy('timestamp', 'desc'));
+
+    // Listener para buscar os pedidos em tempo real
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedPedidos = [];
+      querySnapshot.forEach((doc) => {
+        fetchedPedidos.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+      setPedidos(fetchedPedidos);
+      setLoading(false);
+    }, (error) => {
+      console.error('Erro ao buscar pedidos: ', error);
+      setLoading(false);
+    });
+
+    // Desinscreve o listener quando o componente é desmontado
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Carregando pedidos...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Pedidos Recentes</Text>
+        <Button
+          title="Adicionar Pedido"
+          onPress={() => navigation.navigate('AddOrder')}
+        />
+      </View>
+      <FlatList
+        data={pedidos}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.pedidoItem}>
+            <Text style={styles.pedidoText}>Cliente: {item.nome}</Text>
+            <Text style={styles.pedidoText}>Endereço: {item.endereco}</Text>
+            <Text style={styles.pedidoText}>Produto: {item.produto}</Text>
+            <Text style={styles.pedidoText}>Quantidade: {item.quantidade}</Text>
+            <Text style={styles.pedidoText}>Pagamento: {item.formaPagamento}</Text>
+            {item.formaPagamento === 'Fiado' && (
+              <View>
+                <Text style={styles.pedidoText}>Valor Pendente: R$ {item.valorPendente}</Text>
+                <Text style={styles.pedidoText}>Vencimento: {item.dataVencimento}</Text>
+              </View>
+            )}
+            <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleString()}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  loadingText: {
+    marginTop: 10,
+  },
+  pedidoItem: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  pedidoText: {
+    fontSize: 16,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 5,
+  },
+});
