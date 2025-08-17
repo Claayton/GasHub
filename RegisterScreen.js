@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { initializeApp } from 'firebase/app';
-import firebaseConfig from './firebaseConfig';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './firebaseConfig';
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
