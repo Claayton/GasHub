@@ -9,7 +9,8 @@ export default function FiadoScreen() {
 
   useEffect(() => {
     const pedidosRef = collection(db, 'pedidos');
-    const q = query(pedidosRef, where('formaPagamento', '==', 'Fiado'));
+    // Corrigido para buscar o campo "paymentMethod" que é o nome correto no Firebase
+    const q = query(pedidosRef, where('paymentMethod', '==', 'Fiado'));
 
     const unsubscribe = onSnapshot(
       q,
@@ -45,10 +46,12 @@ export default function FiadoScreen() {
             try {
               const pedidoRef = doc(db, 'pedidos', pedidoId);
               await updateDoc(pedidoRef, {
-                formaPagamento: 'Pago',
-                valorPendente: null,
-                dataVencimento: null,
-                dataPagamento: new Date().toISOString(),
+                // Corrigido para o campo "paymentMethod"
+                paymentMethod: 'Pago',
+                // Corrigidos os nomes dos campos para coincidir com o banco de dados
+                pendingValue: null,
+                dueDate: null,
+                paymentDate: new Date().toISOString(),
               });
               Alert.alert('Sucesso', 'Pedido marcado como pago!');
             } catch (error) {
@@ -70,6 +73,23 @@ export default function FiadoScreen() {
     );
   }
 
+  const formatCurrency = (value) => {
+    if (value === null || typeof value === 'undefined') return 'R$ 0,00';
+    // Remove o "R$" e a vírgula antes de converter para número
+    const numericValue = parseFloat(String(value).replace('R$', '').replace('.', '').replace(',', '.'));
+    if (isNaN(numericValue)) {
+      console.warn('Invalid value for currency formatting:', value);
+      return 'R$ 0,00';
+    }
+    return `R$ ${numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  const formatDate = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString('pt-BR');
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -77,10 +97,11 @@ export default function FiadoScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => handleMarkAsPaid(item.id)} style={styles.card}>
-            <View>
-              <Text style={styles.clientName}>{item.nome}</Text>
-              <Text style={styles.fiadoText}>💰 R$ {item.valorPendente}</Text>
-              <Text style={styles.fiadoText}>📅 Vencimento: {item.dataVencimento}</Text>
+            <View style={styles.cardContent}>
+              {/* Corrigidos os nomes dos campos exibidos e o formato de valor e data */}
+              <Text style={styles.clientName}>{item.customerName}</Text>
+              <Text style={styles.fiadoText}>💰 {formatCurrency(item.pendingValue)}</Text>
+              <Text style={styles.fiadoText}>📅 Vencimento: {formatDate(item.dueDate)}</Text>
             </View>
             <View style={styles.paidButton}>
               <Text style={styles.paidButtonText}>Pagar</Text>
@@ -126,6 +147,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  cardContent: {
+    flex: 1,
+  },
   clientName: {
     fontSize: 18,
     fontWeight: '700',
@@ -137,14 +161,17 @@ const styles = StyleSheet.create({
     color: '#b94a48',
     fontWeight: '600',
   },
-  paidButton: {
+    paidButton: {
     backgroundColor: '#28a745',
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    // remove alignSelf
+    marginLeft: 10,
   },
+
   paidButtonText: {
     color: '#fff',
     fontWeight: 'bold',
