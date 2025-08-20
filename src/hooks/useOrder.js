@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase/config'
 
-export const usePedidos = () => {
+export const useOrders = () => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
