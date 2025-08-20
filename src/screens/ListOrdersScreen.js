@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView } from 'react-native';
-import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase/config';
+import { formatarValor, formatarData, formatarDataHora } from '../utils/formatters';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
 export default function ListOrdersScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtro, setFiltro] = useState('Todos');
 
   useEffect(() => {
     const pedidosRef = collection(db, 'pedidos');
@@ -48,15 +48,11 @@ export default function ListOrdersScreen({ navigation }) {
   }
 
   // Filtra os pedidos
-  const pedidosFiltrados = pedidos.filter((item) => {
-    if (filtro === 'Todos') return true;
-    if (filtro === 'Fiados') return item.paymentMethod === 'Fiado';
-    if (filtro === 'Pagos') return item.paymentMethod !== 'Fiado';
-  });
+  const pedidosFiltrados = pedidos; // ← Mostra TODOS os pedidos sem filtro
 
   const renderItem = ({ item }) => {
   const isFiado = item.paymentMethod === 'Fiado';
-  const valorExibir = item.pendingValue || item.totalValue || '0,00';
+  const valorExibir = item.pendingValue || item.totalValue || '0,00*';
 
   return (
     <View style={styles.card}>
@@ -79,14 +75,14 @@ export default function ListOrdersScreen({ navigation }) {
       <Text style={styles.addressText}>{item.address}</Text>
 
       {/* Exibir valor para todos */}
-      <Text style={styles.fiadoText}>💰 Valor: R$ {valorExibir}</Text>
+      <Text style={styles.fiadoText}>💰 Valor: R$ {formatarValor(valorExibir)}</Text>
 
       {/* Info extra só para Fiado */}
       {isFiado && item.dueDate && (
-        <Text style={styles.fiadoText}>📅 Vencimento: {new Date(item.dueDate).toLocaleDateString()}</Text>
+        <Text style={styles.fiadoText}>📅 Vencimento: {formatarData(item.dueDate)}</Text>
       )}
 
-      <Text style={styles.dateText}>Pedido em: {new Date(item.timestamp).toLocaleString()}</Text>
+      <Text style={styles.dateText}>Pedido em: {formatarDataHora(item.timestamp)}</Text>
     </View>
   );
 };
@@ -104,29 +100,6 @@ export default function ListOrdersScreen({ navigation }) {
           <Text style={styles.buttonText}>Adicionar</Text>
         </TouchableOpacity>
 
-        {/* Botão para "Fiados" agora é apenas um filtro */}
-        <TouchableOpacity
-          style={[styles.customButton, { backgroundColor: '#f0ad4e' }]}
-          onPress={() => setFiltro('Fiados')}
-        >
-          <Icon name="money-bill-wave" size={18} color="#fff" style={styles.icon} />
-          <Text style={styles.buttonText}>Fiados</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filtro */}
-      <View style={styles.filterContainer}>
-        {['Todos', 'Pagos', 'Fiados'].map((tipo) => (
-          <TouchableOpacity
-            key={tipo}
-            style={[styles.filterButton, filtro === tipo && styles.filterButtonActive]}
-            onPress={() => setFiltro(tipo)}
-          >
-            <Text style={[styles.filterText, filtro === tipo && styles.filterTextActive]}>
-              {tipo}
-            </Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
       {/* Lista de pedidos */}
