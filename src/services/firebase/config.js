@@ -1,16 +1,20 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+const extra = Constants.expoConfig?.extra || {};
+
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDhZQAbwhyNxiMfEBYeV3d1kK_WyGc5Ekw",
-  authDomain: "gashub-cab1c.firebaseapp.com",
-  projectId: "gashub-cab1c",
-  storageBucket: "gashub-cab1c.firebasestorage.app",
-  messagingSenderId: "1083880426899",
-  appId: "1:1083880426899:web:dc28e5763221fcbae1ec66",
-  measurementId: "G-311L4D97BM"
+  apiKey: extra.firebaseApiKey,
+  authDomain: extra.firebaseAuthDomain,
+  projectId: extra.firebaseProjectId,
+  storageBucket: extra.firebaseStorageBucket,
+  messagingSenderId: extra.firebaseMessagingSenderId,
+  appId: extra.firebaseAppId,
+  measurementId: extra.firebaseMeasurementId
 };
 
 const app = initializeApp(firebaseConfig);
