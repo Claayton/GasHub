@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase/config';
 import { formatarValor, formatarData, formatarDataHora } from '../utils/formatters';
@@ -8,7 +8,6 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 export default function ListOrdersScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroTemporal, setFiltroTemporal] = useState('Todos');
 
   useEffect(() => {
     const pedidosRef = collection(db, 'pedidos');
@@ -24,9 +23,7 @@ export default function ListOrdersScreen({ navigation }) {
           });
         });
 
-        // Ordenar os pedidos em memória por timestamp mais recente
         fetchedPedidos.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
         setPedidos(fetchedPedidos);
         setLoading(false);
       },
@@ -40,128 +37,177 @@ export default function ListOrdersScreen({ navigation }) {
   }, []);
 
   const filtrarPedidosHoje = (pedidos) => {
-  const hoje = new Date();
-  const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  
-  return pedidos.filter(pedido => {
-    const dataPedido = new Date(pedido.timestamp);
-    return dataPedido >= inicioDia;
-  });
-};
+    const hoje = new Date();
+    const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    
+    return pedidos.filter(pedido => {
+      const dataPedido = new Date(pedido.timestamp);
+      return dataPedido >= inicioDia;
+    });
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
         <Text style={styles.loadingText}>Carregando pedidos...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // Filtra os pedidos
   const pedidosFiltrados = filtrarPedidosHoje(pedidos);
 
-  const renderItem = ({ item }) => {
-  const isFiado = item.paymentMethod === 'Fiado';
-  const valorExibir = item.pendingValue || item.totalValue || '0,00*';
-  
-  const getStatusPagamento = (paymentMethod) => {
-    if (paymentMethod === 'Fiado') {
-      return { color: '#d9534f', icon: '⏰' }; // Vermelho + ícone de relógio
-    } else {
-      return { color: '#28a745', icon: '✅' }; // Verde + ícone de check
-    }
+  const calcularTotaisDetalhados = () => {
+    let totalPedidos = pedidosFiltrados.length;
+    let totalValor = 0;
+    let pedidosPagos = 0;
+    let pedidosFiados = 0;
+
+    pedidosFiltrados.forEach(pedido => {
+      const valor = pedido.pendingValue || pedido.totalValue || 0;
+      const valorNumerico = typeof valor === 'string' ? 
+        parseFloat(valor.replace(',', '.')) : 
+        Number(valor);
+      
+      totalValor += valorNumerico;
+      
+      if (pedido.paymentMethod === 'Fiado') {
+        pedidosFiados++;
+      } else {
+        pedidosPagos++;
+      }
+    });
+
+    return { totalPedidos, totalValor, pedidosPagos, pedidosFiados };
   };
 
-  const status = getStatusPagamento(item.paymentMethod);
-  
+  const { totalPedidos, totalValor, pedidosPagos, pedidosFiados } = calcularTotaisDetalhados();
+
+  const renderItem = ({ item }) => {
+    const isFiado = item.paymentMethod === 'Fiado';
+    const valorExibir = item.pendingValue || item.totalValue || 0;
+    const statusColor = isFiado ? '#d9534f' : '#28a745';
+    const statusIcon = isFiado ? '⏰' : '✅';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.clientName}>{item.customerName}</Text>
+          <View style={[styles.badge, { backgroundColor: isFiado ? '#f0ad4e' : '#5cb85c' }]}>
+            <Text style={styles.badgeText}>{item.paymentMethod}</Text>
+          </View>
+        </View>
+
+        <View style={styles.productsList}>
+          {item.products.map((product, index) => (
+            <Text key={index} style={styles.productText}>
+              • {product.name} ({product.quantity} un.)
+            </Text>
+          ))}
+        </View>
+
+        <Text style={styles.addressText}>{item.address}</Text>
+
+        <Text style={[styles.valorText, { color: statusColor }]}>
+          {statusIcon} Valor: R$ {formatarValor(valorExibir)}
+        </Text>
+
+        {isFiado && item.dueDate && (
+          <Text style={styles.fiadoText}>📅 Vencimento: {formatarData(item.dueDate)}</Text>
+        )}
+
+        <Text style={styles.dateText}>Pedido em: {formatarDataHora(item.timestamp)}</Text>
+      </View>
+    );
+  };
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.clientName}>{item.customerName}</Text>
-        <View style={[styles.badge, { backgroundColor: isFiado ? '#f0ad4e' : '#5cb85c' }]}>
-          <Text style={styles.badgeText}>{item.paymentMethod}</Text>
+    <View style={styles.container}>
+      {/* Header Fixo */}
+      <View style={styles.headerFixo}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerText}>
+            {totalPedidos} pedidos ({pedidosPagos}💰 | {pedidosFiados}⏰)
+          </Text>
+          <Text style={styles.headerText}>
+            Total: R$ {formatarValor(totalValor)}
+          </Text>
         </View>
       </View>
 
-      {/* Lista de produtos */}
-      <View style={styles.productsList}>
-        {item.products.map((product, index) => (
-          <Text key={index} style={styles.productText}>
-            • {product.name} ({product.quantity} un.)
-          </Text>
-        ))}
+      {/* Conteúdo principal */}
+      <View style={styles.content}>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.customButton, { backgroundColor: '#007bff' }]}
+            onPress={() => navigation.navigate('AddOrder')}
+          >
+            <Icon name="plus" size={18} color="#fff" style={styles.icon} />
+            <Text style={styles.buttonText}>Adicionar</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={pedidosFiltrados}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              Nenhum pedido encontrado hoje
+            </Text>
+          }
+        />
       </View>
-
-      <Text style={styles.addressText}>{item.address}</Text>
-
-      {/* Exibir valor para todos */}
-      <Text style={[styles.valorText, { color: status.color }]}>
-        {status.icon} Valor: R$ {formatarValor(valorExibir)}
-      </Text>
-
-      {/* Info extra só para Fiado */}
-      {isFiado && item.dueDate && (
-        <Text style={styles.fiadoText}>📅 Vencimento: {formatarData(item.dueDate)}</Text>
-      )}
-
-      <Text style={styles.dateText}>Pedido em: {formatarDataHora(item.timestamp)}</Text>
     </View>
-  );
-};
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Botões de ação */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.customButton, { backgroundColor: '#007bff' }]}
-          onPress={() => navigation.navigate('AddOrder')}
-        >
-          <Icon name="plus" size={18} color="#fff" style={styles.icon} />
-          <Text style={styles.buttonText}>Adicionar</Text>
-        </TouchableOpacity>
-
-      </View>
-
-      {/* Lista de pedidos */}
-      <FlatList
-        data={pedidosFiltrados}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingVertical: 10 }}
-        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', marginTop: 30, color: '#666' }}>
-            Nenhum pedido encontrado
-          </Text>
-        }
-      />
-    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f5f7fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#f5f7fa',
   },
   loadingText: {
     marginTop: 10,
+    color: '#333',
   },
-  buttonContainer: {
+  headerFixo: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    alignItems: 'center',
+  },
+  headerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  buttonContainer: {
     marginBottom: 16,
   },
   customButton: {
-    flex: 1,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+    backgroundColor: '#007bff',
   },
   icon: {
     marginRight: 6,
@@ -171,28 +217,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 16,
+  listContent: {
+    paddingBottom: 20,
   },
-  filterButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#e0e0e0',
-  },
-  filterButtonActive: {
-    backgroundColor: '#007bff',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  filterTextActive: {
-    color: '#fff',
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 30,
+    color: '#666',
+    fontSize: 16,
   },
   card: {
     backgroundColor: '#fff',
@@ -236,13 +268,16 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 6,
   },
-  fiadoInfo: {
+  valorText: {
+    fontSize: 16,
+    fontWeight: '600',
     marginTop: 6,
   },
   fiadoText: {
     fontSize: 14,
     color: '#b94a48',
     fontWeight: '600',
+    marginTop: 4,
   },
   dateText: {
     fontSize: 12,
