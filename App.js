@@ -1,8 +1,9 @@
 import 'react-native-gesture-handler';
-import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
+import { Text, StyleSheet, ActivityIndicator, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+
 
 // Hooks e Componentes
 import { useAuth } from './src/hooks/useAuth'; // Seu hook personalizado
@@ -12,6 +13,7 @@ import AppDrawer from './src/navigation/AppDrawer';
 const Stack = createStackNavigator();
 
 export default function App() {
+
   const { user, loading, error } = useAuth(); // Usando seu hook
 
   if (loading) {
@@ -32,18 +34,23 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {user ? (
-            <Stack.Screen name="AppDrawer" component={AppDrawer} />
-          ) : (
-            <Stack.Screen name="Auth" component={AuthStack} />
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaView>
+
+      // SafeAreaProvider é usado para garantir que o conteúdo não seja cortado por barras de status ou navegação, é uma solução temporaria pois futuramente os botoes do android devem ficar mais adaptados, se escondendo quando o app é aberto e subir apenas quando o usuario precisar usalos.
+      
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+              {user ? (
+              <Stack.Screen name="AppDrawer" component={AppDrawer} />
+            ) : (
+              <Stack.Screen name="Auth" component={AuthStack} />
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

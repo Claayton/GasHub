@@ -3,7 +3,7 @@ import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } fr
 import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterScreen({ navigation }) {
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { register } = useAuth();
