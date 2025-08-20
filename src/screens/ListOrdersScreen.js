@@ -1,40 +1,11 @@
-import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../services/firebase/config';
+import { usePedidos } from '../hooks/useOrder';
 import { formatarValor, formatarData, formatarDataHora } from '../utils/formatters';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
 export default function ListOrdersScreen({ navigation }) {
-  const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const pedidosRef = collection(db, 'pedidos');
-
-    const unsubscribe = onSnapshot(
-      pedidosRef,
-      (querySnapshot) => {
-        const fetchedPedidos = [];
-        querySnapshot.forEach((doc) => {
-          fetchedPedidos.push({
-            id: doc.id,
-            ...doc.data(),
-          });
-        });
-
-        fetchedPedidos.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        setPedidos(fetchedPedidos);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Erro ao buscar pedidos: ', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
+  const { pedidos, loading } = usePedidos();
 
   const filtrarPedidosHoje = (pedidos) => {
     const hoje = new Date();
