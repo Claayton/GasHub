@@ -1,22 +1,26 @@
 // hooks/useAuth.js
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase/config'; // Importando do seu arquivo
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword 
+} from 'firebase/auth';
+import { auth } from '../services/firebase/config';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false); // Loading específico para login/register
 
   useEffect(() => {
-    // Verifica se o auth foi inicializado
     if (!auth) {
       setError('Firebase Auth não foi inicializado');
       setLoading(false);
       return;
     }
 
-    // Escuta mudanças no estado de autenticação
     const unsubscribe = onAuthStateChanged(
       auth,
       (user) => {
@@ -31,9 +35,38 @@ export const useAuth = () => {
       }
     );
 
-    // Cleanup function
     return unsubscribe;
   }, []);
+
+  const login = async (email, password) => {
+    setAuthLoading(true);
+    setError(null);
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error('Erro no login:', error);
+      setError(error.message);
+      throw error; // Importante: re-lançar o erro para a tela poder tratar
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const register = async (email, password) => {
+    setAuthLoading(true);
+    setError(null);
+    
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error('Erro no registro:', error);
+      setError(error.message);
+      throw error; // Re-lançar o erro
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const logout = async () => {
     try {
@@ -41,8 +74,17 @@ export const useAuth = () => {
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
       setError(error.message);
+      throw error;
     }
   };
 
-  return { user, loading, error, logout };
+  return { 
+    user, 
+    loading, 
+    authLoading, // Loading específico para auth
+    error, 
+    login, 
+    register, 
+    logout 
+  };
 };
