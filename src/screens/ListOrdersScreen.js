@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { formatarValor } from '../utils/formatters';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import OrderCard from '../components/OrderCard';
 import { useOrders } from '../hooks/useOrder';
+import { useOrderTotals } from '../hooks/useOrderTotals';
 
 export default function ListOrdersScreen({ navigation }) {
 
@@ -18,6 +18,16 @@ export default function ListOrdersScreen({ navigation }) {
     });
   };
 
+  const pedidosFiltrados = filtrarPedidosHoje(pedidos);
+
+  const { 
+    totalPedidos, 
+    totalValor, 
+    pedidosPagos, 
+    pedidosFiados,
+    totalValorFormatado 
+  } = useOrderTotals(pedidosFiltrados);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -26,34 +36,6 @@ export default function ListOrdersScreen({ navigation }) {
       </View>
     );
   }
-
-  const pedidosFiltrados = filtrarPedidosHoje(pedidos);
-
-  const calcularTotaisDetalhados = () => {
-    let totalPedidos = pedidosFiltrados.length;
-    let totalValor = 0;
-    let pedidosPagos = 0;
-    let pedidosFiados = 0;
-
-    pedidosFiltrados.forEach(pedido => {
-      const valor = pedido.pendingValue || pedido.totalValue || 0;
-      const valorNumerico = typeof valor === 'string' ? 
-        parseFloat(valor.replace(',', '.')) : 
-        Number(valor);
-      
-      totalValor += valorNumerico;
-      
-      if (pedido.paymentMethod === 'Fiado') {
-        pedidosFiados++;
-      } else {
-        pedidosPagos++;
-      }
-    });
-
-    return { totalPedidos, totalValor, pedidosPagos, pedidosFiados };
-  };
-
-  const { totalPedidos, totalValor, pedidosPagos, pedidosFiados } = calcularTotaisDetalhados();
 
   // ✅ RenderItem simplificado!
   const renderItem = ({ item }) => <OrderCard item={item} />;
@@ -66,9 +48,7 @@ export default function ListOrdersScreen({ navigation }) {
           <Text style={styles.headerText}>
             {totalPedidos} pedidos ({pedidosPagos}💰 | {pedidosFiados}⏰)
           </Text>
-          <Text style={styles.headerText}>
-            Total: R$ {formatarValor(totalValor)}
-          </Text>
+          <Text style={styles.headerText}>Total: R$ {totalValorFormatado}</Text>
         </View>
       </View>
 
