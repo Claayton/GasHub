@@ -8,6 +8,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 export default function ListOrdersScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filtroTemporal, setFiltroTemporal] = useState('Todos');
 
   useEffect(() => {
     const pedidosRef = collection(db, 'pedidos');
@@ -38,6 +39,16 @@ export default function ListOrdersScreen({ navigation }) {
     return () => unsubscribe();
   }, []);
 
+  const filtrarPedidosHoje = (pedidos) => {
+  const hoje = new Date();
+  const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  
+  return pedidos.filter(pedido => {
+    const dataPedido = new Date(pedido.timestamp);
+    return dataPedido >= inicioDia;
+  });
+};
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -48,12 +59,22 @@ export default function ListOrdersScreen({ navigation }) {
   }
 
   // Filtra os pedidos
-  const pedidosFiltrados = pedidos; // ← Mostra TODOS os pedidos sem filtro
+  const pedidosFiltrados = filtrarPedidosHoje(pedidos);
 
   const renderItem = ({ item }) => {
   const isFiado = item.paymentMethod === 'Fiado';
   const valorExibir = item.pendingValue || item.totalValue || '0,00*';
+  
+  const getStatusPagamento = (paymentMethod) => {
+    if (paymentMethod === 'Fiado') {
+      return { color: '#d9534f', icon: '⏰' }; // Vermelho + ícone de relógio
+    } else {
+      return { color: '#28a745', icon: '✅' }; // Verde + ícone de check
+    }
+  };
 
+  const status = getStatusPagamento(item.paymentMethod);
+  
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -75,7 +96,9 @@ export default function ListOrdersScreen({ navigation }) {
       <Text style={styles.addressText}>{item.address}</Text>
 
       {/* Exibir valor para todos */}
-      <Text style={styles.fiadoText}>💰 Valor: R$ {formatarValor(valorExibir)}</Text>
+      <Text style={[styles.valorText, { color: status.color }]}>
+        {status.icon} Valor: R$ {formatarValor(valorExibir)}
+      </Text>
 
       {/* Info extra só para Fiado */}
       {isFiado && item.dueDate && (
@@ -86,7 +109,6 @@ export default function ListOrdersScreen({ navigation }) {
     </View>
   );
 };
-
 
   return (
     <SafeAreaView style={styles.container}>
