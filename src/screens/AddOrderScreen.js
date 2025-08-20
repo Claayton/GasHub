@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity,
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc } from 'firebase/firestore';
-import { auth, db } from '../config/firebaseConfig';
+import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Função para formatar valor em BRL

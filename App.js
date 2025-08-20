@@ -17,7 +17,7 @@ import ListOrdersScreen from './src/screens/ListOrdersScreen.js';
 import FiadoScreen from './src/screens/ReceivablesScreen.js';
 
 // Firebase
-import { auth } from './src/config/firebaseConfig';
+import { auth } from './src/services/firebase/config.js';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();

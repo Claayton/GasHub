@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView } from 'react-native';
 import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebaseConfig';
+import { db } from '../services/firebase/config';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
 export default function ListOrdersScreen({ navigation }) {

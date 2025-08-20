@@ -19,4 +19,8 @@ const auth = initializeAuth(app, {
 });
 const db = getFirestore(app);
 
+if (!app || !auth || !db) {
+  console.error('Firebase inicialization error!');
+}
+
 export { app, auth, db };

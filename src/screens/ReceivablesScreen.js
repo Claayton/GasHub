@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { collection, onSnapshot, query, where, updateDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebaseConfig';
+import { db } from '../services/firebase/config';
 
 export default function FiadoScreen() {
   const [fiadoPedidos, setFiadoPedidos] = useState([]);
