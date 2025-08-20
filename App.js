@@ -10,14 +10,14 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { signOut } from 'firebase/auth';
 
 // Telas
-import LoginScreen from './LoginScreen';
-import RegisterScreen from './RegisterScreen';
-import AddOrderScreen from './AddOrderScreen';
-import ListOrdersScreen from './ListOrdersScreen';
-import FiadoScreen from './FiadoScreen';
+import LoginScreen from './src/screens/LoginScreen.js';
+import RegisterScreen from './src/screens/RegisterScreen.js';
+import AddOrderScreen from './src/screens/AddOrderScreen.js';
+import ListOrdersScreen from './src/screens/ListOrdersScreen.js';
+import FiadoScreen from './src/screens/ReceivablesScreen.js';
 
 // Firebase
-import { auth } from './firebaseConfig';
+import { auth } from './src/config/firebaseConfig';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
