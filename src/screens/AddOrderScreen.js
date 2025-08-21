@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc } from 'firebase/firestore';
@@ -7,7 +7,6 @@ import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderCalculator } from '../hooks/useOrderCalculator';
-
 
 // Cria produto padrão com um valor inicial de 0
 const createDefaultProduct = () => ({
@@ -58,7 +57,7 @@ export default function AddOrderScreen() {
 
   const onDateChange = (event, selectedDate) => {
     const currentDate = selectedDate || orderData.dueDate;
-    setShowDatePicker(Platform.OS === 'ios');
+    setShowDatePicker(false); // Fecha o datepicker após seleção
     setOrderData({ ...orderData, dueDate: currentDate });
   };
 
@@ -171,27 +170,15 @@ export default function AddOrderScreen() {
             )}
 
             <Text style={styles.label}>Nome do Produto</Text>
-            {Platform.OS === 'web' ? (
-              <select
-                value={product.name}
-                onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
-                style={styles.pickerWeb}
-              >
-                <option value="Botijão de 13kg">Botijão de 13kg</option>
-                <option value="Botijão de 5kg">Botijão de 5kg</option>
-                <option value="Água Mineral">Água Mineral</option>
-              </select>
-            ) : (
-              <Picker
-                selectedValue={product.name}
-                style={styles.picker}
-                onValueChange={(itemValue) => handleProductChange(product.id, 'name', itemValue)}
-              >
-                <Picker.Item label="Botijão de 13kg" value="Botijão de 13kg" />
-                <Picker.Item label="Botijão de 5kg" value="Botijão de 5kg" />
-                <Picker.Item label="Água Mineral" value="Água Mineral" />
-              </Picker>
-            )}
+            <Picker
+              selectedValue={product.name}
+              style={styles.picker}
+              onValueChange={(itemValue) => handleProductChange(product.id, 'name', itemValue)}
+            >
+              <Picker.Item label="Botijão de 13kg" value="Botijão de 13kg" />
+              <Picker.Item label="Botijão de 5kg" value="Botijão de 5kg" />
+              <Picker.Item label="Água Mineral" value="Água Mineral" />
+            </Picker>
 
             <Text style={styles.label}>Quantidade</Text>
             <View style={styles.quantityContainer}>
@@ -221,29 +208,16 @@ export default function AddOrderScreen() {
       {/* Bloco 3: Seção de Pagamento */}
       <View style={styles.card}>
         <Text style={styles.label}>Forma de Pagamento</Text>
-        {Platform.OS === 'web' ? (
-          <select
-            value={orderData.paymentMethod}
-            onChange={(e) => setOrderData({ ...orderData, paymentMethod: e.target.value })}
-            style={styles.pickerWeb}
-          >
-            <option value="Dinheiro">Dinheiro</option>
-            <option value="Cartão">Cartão</option>
-            <option value="Pix">Pix</option>
-            <option value="Fiado">Fiado</option>
-          </select>
-        ) : (
-          <Picker
-            selectedValue={orderData.paymentMethod}
-            style={styles.picker}
-            onValueChange={(itemValue) => setOrderData({ ...orderData, paymentMethod: itemValue })}
-          >
-            <Picker.Item label="Dinheiro" value="Dinheiro" />
-            <Picker.Item label="Cartão" value="Cartão" />
-            <Picker.Item label="Pix" value="Pix" />
-            <Picker.Item label="Fiado" value="Fiado" />
-          </Picker>
-        )}
+        <Picker
+          selectedValue={orderData.paymentMethod}
+          style={styles.picker}
+          onValueChange={(itemValue) => setOrderData({ ...orderData, paymentMethod: itemValue })}
+        >
+          <Picker.Item label="Dinheiro" value="Dinheiro" />
+          <Picker.Item label="Cartão" value="Cartão" />
+          <Picker.Item label="Pix" value="Pix" />
+          <Picker.Item label="Fiado" value="Fiado" />
+        </Picker>
 
         {/* Valor Total (apenas visualização) */}
         <Text style={styles.label}>Valor Total do Pedido</Text>
@@ -253,28 +227,19 @@ export default function AddOrderScreen() {
         {orderData.paymentMethod === 'Fiado' && (
           <>
             <Text style={styles.label}>Data de Vencimento</Text>
-            {Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={orderData.dueDate.toISOString().substring(0, 10)}
-                onChange={(e) => setOrderData({ ...orderData, dueDate: new Date(e.target.value) })}
-                style={styles.inputWebDate}
-              />
-            ) : (
-              <View>
-                <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                  <Text style={styles.dateButtonText}>{orderData.dueDate.toLocaleDateString('pt-BR')}</Text>
-                </TouchableOpacity>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={orderData.dueDate}
-                    mode="date"
-                    display="default"
-                    onChange={onDateChange}
-                  />
-                )}
-              </View>
-            )}
+            <View>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateButtonText}>{orderData.dueDate.toLocaleDateString('pt-BR')}</Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={orderData.dueDate}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                />
+              )}
+            </View>
           </>
         )}
       </View>
@@ -353,37 +318,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     textAlign: 'center',
   },
-  inputWebDate: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginTop: 5,
-    backgroundColor: '#fff',
-    fontFamily: 'sans-serif',
-    color: '#555',
-  },
   picker: {
-    height: 'auto',
+    height: 50,
     width: '100%',
     marginTop: 5,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    paddingVertical: 8,
-  },
-  pickerWeb: {
-    height: 'auto',
-    width: '100%',
-    marginTop: 5,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 8,
-    paddingVertical: 12,
   },
   quantityContainer: {
     flexDirection: 'row',
