@@ -8,6 +8,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderCalculator } from '../hooks/useOrderCalculator';
 import { useProducts } from '../hooks/useProducts';
+import { useOrderForm } from '../hooks/useOrderForm';
 
 // Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
@@ -91,14 +92,21 @@ const LoadingScreen = memo(() => (
 ));
 
 export default function AddOrderScreen() {
-  // Estados separados para evitar re-renders desnecessários
-  const [customerName, setCustomerName] = useState('');
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
-  const [dueDate, setDueDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Usar o hook de formulário
+  const {
+    formData: { customerName, address, paymentMethod, dueDate },
+    showDatePicker,
+    isSubmitting,
+    setShowDatePicker,
+    setIsSubmitting,
+    setCustomerName,
+    setAddress,
+    setPaymentMethod,
+    setDueDate,
+    resetForm
+  } = useOrderForm();
 
   // Usar o hook de produtos
   const { 
@@ -121,7 +129,7 @@ export default function AddOrderScreen() {
     const currentDate = selectedDate || dueDate;
     setShowDatePicker(false);
     setDueDate(currentDate);
-  }, [dueDate]);
+  }, [dueDate, setDueDate, setShowDatePicker]);
 
   const handleAddOrder = useCallback(async () => {
     setIsSubmitting(true);
@@ -176,11 +184,8 @@ export default function AddOrderScreen() {
 
       Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
 
-      // Reset form
-      setCustomerName('');
-      setAddress('');
-      setPaymentMethod('Dinheiro');
-      setDueDate(new Date());
+      // Reset form usando as funções dos hooks
+      resetForm();
       resetProducts();
 
     } catch (e) {
@@ -189,7 +194,7 @@ export default function AddOrderScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetProducts]);
+  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
