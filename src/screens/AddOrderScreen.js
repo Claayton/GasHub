@@ -7,14 +7,7 @@ import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderCalculator } from '../hooks/useOrderCalculator';
-
-// Cria produto padrão com um valor inicial de 0
-const createDefaultProduct = () => ({
-  id: Date.now(),
-  name: 'Botijão de 13kg',
-  quantity: 1,
-  price: 'R$ 0,00',
-});
+import { useProducts } from '../hooks/useProducts';
 
 // Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
@@ -48,7 +41,10 @@ const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange
           <Text style={styles.qtyButtonText}>-</Text>
         </TouchableOpacity>
         <Text style={styles.quantityText}>{product.quantity}</Text>
-        <TouchableOpacity style={styles.qtyButton} onPress={() => onQuantityChange(product.id, 1)}>
+        <TouchableOpacity 
+          style={styles.qtyButton} 
+          onPress={() => onQuantityChange(product.id, 1)}
+        >
           <Text style={styles.qtyButtonText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -100,43 +96,25 @@ export default function AddOrderScreen() {
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
   const [dueDate, setDueDate] = useState(new Date());
-  const [products, setProducts] = useState([createDefaultProduct()]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Usar o hook de produtos
+  const { 
+    products, 
+    addProduct, 
+    removeProduct, 
+    updateProduct, 
+    updateQuantity, 
+    resetProducts 
+  } = useProducts();
 
   const { totalValue } = useOrderCalculator(products);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, () => setIsLoading(false));
     return () => unsubscribe();
-  }, []);
-
-  const handleAddProduct = useCallback(() => {
-    setProducts(prev => [...prev, createDefaultProduct()]);
-  }, []);
-
-  const handleRemoveProduct = useCallback((idToRemove) => {
-    setProducts(prev => {
-      if (prev.length > 1) {
-        return prev.filter(p => p.id !== idToRemove);
-      }
-      return prev;
-    });
-  }, []);
-
-  const handleProductChange = useCallback((id, field, value) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-  }, []);
-
-  const handleQuantityChange = useCallback((id, amount) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === id) {
-        const newQty = p.quantity + amount;
-        return { ...p, quantity: Math.max(1, newQty) };
-      }
-      return p;
-    }));
   }, []);
 
   const onDateChange = useCallback((event, selectedDate) => {
@@ -203,14 +181,15 @@ export default function AddOrderScreen() {
       setAddress('');
       setPaymentMethod('Dinheiro');
       setDueDate(new Date());
-      setProducts([createDefaultProduct()]);
+      resetProducts();
+
     } catch (e) {
       console.error('Erro ao adicionar pedido: ', e);
       Alert.alert('Erro', 'Não foi possível adicionar o pedido.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue]);
+  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetProducts]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
@@ -219,13 +198,13 @@ export default function AddOrderScreen() {
         key={product.id}
         product={product}
         index={index}
-        onRemove={handleRemoveProduct}
-        onChange={handleProductChange}
-        onQuantityChange={handleQuantityChange}
+        onRemove={removeProduct}
+        onChange={updateProduct}
+        onQuantityChange={updateQuantity}
         canRemove={products.length > 1}
       />
     ))
-  ), [products, handleRemoveProduct, handleProductChange, handleQuantityChange]);
+  ), [products, removeProduct, updateProduct, updateQuantity]);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -253,7 +232,7 @@ export default function AddOrderScreen() {
       {/* Bloco 2: Seção de Produtos */}
       <View style={styles.productsContainer}>
         {productsList}
-        <TouchableOpacity style={styles.addProductButton} onPress={handleAddProduct}>
+        <TouchableOpacity style={styles.addProductButton} onPress={addProduct}>
           <Text style={styles.addProductButtonText}>Adicionar Produto</Text>
         </TouchableOpacity>
       </View>
@@ -293,7 +272,9 @@ export default function AddOrderScreen() {
         onPress={handleAddOrder} 
         disabled={isSubmitting}
       >
-        <Text style={styles.submitButtonText}>{isSubmitting ? 'Adicionando...' : 'Adicionar Pedido'}</Text>
+        <Text style={styles.submitButtonText}>
+          {isSubmitting ? 'Adicionando...' : 'Adicionar Pedido'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
