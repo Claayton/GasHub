@@ -68,3 +68,18 @@ export const formatarHora = (data) => {
     return 'Hora inválida';
   }
 };
+
+// Função para formatar valor em BRL
+export const formatCurrency = (value) => {
+  if (!value) return '';
+  
+  const numericValue = parseInt(value.replace(/[\D]/g, ''), 10);
+  if (isNaN(numericValue)) return '';
+  
+  return (numericValue / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};

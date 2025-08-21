@@ -5,18 +5,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
+import { formatCurrency } from '../utils/formatters';
 
-// Função para formatar valor em BRL
-const formatCurrency = (value) => {
-  const numericValue = parseInt(value.replace(/[\D]/g, ''), 10);
-  if (isNaN(numericValue)) return '';
-  return (numericValue / 100).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
 
 // Cria produto padrão com um valor inicial de 0
 const createDefaultProduct = () => ({
