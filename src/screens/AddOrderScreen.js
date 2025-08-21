@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -31,7 +31,6 @@ export default function AddOrderScreen() {
     customerName: '',
     address: '',
     paymentMethod: 'Dinheiro',
-    pendingValue: '',
     dueDate: new Date(),
   });
   const [products, setProducts] = useState([createDefaultProduct()]);
@@ -108,9 +107,6 @@ export default function AddOrderScreen() {
     }
 
     try {
-      // Valor pendente será o valor total, a menos que seja um pedido "Fiado"
-      const finalPendingValue = orderData.paymentMethod === 'Fiado' ? orderData.pendingValue : totalValue;
-
       const sanitizedProducts = products.map(p => ({
         name: p.name,
         quantity: p.quantity,
@@ -124,26 +120,28 @@ export default function AddOrderScreen() {
         address: orderData.address,
         products: sanitizedProducts,
         paymentMethod: orderData.paymentMethod,
-        totalValue: parseFloat(totalValue.replace('R$', '').replace('.', '').replace(',', '.')), // Converte o valor total para número
-        pendingValue: parseFloat(finalPendingValue.replace('R$', '').replace('.', '').replace(',', '.')),
+        totalValue: parseFloat(totalValue.replace('R$', '').replace(/\./g, '').replace(',', '.')),
         timestamp: new Date().toISOString(),
         userId,
         status: 'pendente',
       };
 
+      // ✅ Apenas adiciona dueDate se for Fiado
       if (orderData.paymentMethod === 'Fiado') {
         newOrder.dueDate = orderData.dueDate.toISOString();
+        // ✅ Para fiados, o pendingValue é igual ao totalValue (valor total que falta pagar)
+        newOrder.pendingValue = parseFloat(totalValue.replace('R$', '').replace(/\./g, '').replace(',', '.'));
       }
 
       await addDoc(collection(db, 'pedidos'), newOrder);
 
       Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
 
+      // Reset form
       setOrderData({
         customerName: '',
         address: '',
         paymentMethod: 'Dinheiro',
-        pendingValue: '',
         dueDate: new Date(),
       });
       setProducts([createDefaultProduct()]);
@@ -269,24 +267,11 @@ export default function AddOrderScreen() {
           </Picker>
         )}
 
-        {/* Valor Total */}
-        <Text style={styles.label}>Valor Total</Text>
-        {orderData.paymentMethod === 'Fiado' ? (
-          <TextInput
-            style={styles.highlightedInput} // Estilo alterado para destacar
-            keyboardType="numeric"
-            value={orderData.pendingValue}
-            onChangeText={(text) => setOrderData({ ...orderData, pendingValue: formatCurrency(text) })}
-          />
-        ) : (
-          <TextInput
-            style={styles.highlightedInput} // Estilo alterado para destacar
-            value={totalValue}
-            editable={false}
-          />
-        )}
-        
-        {/* Data de Vencimento (apenas para Fiado) */}
+        {/* Valor Total (apenas visualização) */}
+        <Text style={styles.label}>Valor Total do Pedido</Text>
+        <Text style={styles.totalValueText}>{totalValue}</Text>
+
+        {/* Data de Vencimento apenas para Fiado */}
         {orderData.paymentMethod === 'Fiado' && (
           <>
             <Text style={styles.label}>Data de Vencimento</Text>
@@ -365,6 +350,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#555',
   },
+  productLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+    color: '#333',
+  },
   input: {
     height: 40,
     borderColor: '#ccc',
@@ -374,16 +365,15 @@ const styles = StyleSheet.create({
     marginTop: 5,
     backgroundColor: '#fff',
   },
-  highlightedInput: {
-    height: 50,
-    borderColor: '#007bff',
-    borderWidth: 2,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginTop: 5,
-    backgroundColor: '#e6f2ff',
+  totalValueText: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#007bff',
+    marginTop: 5,
+    padding: 10,
+    backgroundColor: '#e6f2ff',
+    borderRadius: 8,
+    textAlign: 'center',
   },
   inputWebDate: {
     height: 40,
