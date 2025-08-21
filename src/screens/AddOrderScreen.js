@@ -3,14 +3,9 @@ import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity,
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { formatCurrency } from '../utils/formatters';
-import { useOrderCalculator } from '../hooks/useOrderCalculator';
-import { useProducts } from '../hooks/useProducts';
-import { useOrderForm } from '../hooks/useOrderForm';
-import { useOrderValidation } from '../hooks/useOrderValidation';
-import { useAuth } from '../hooks/useAuth';
-import { useOrderSubmission } from '../hooks/useOrderSubmission';
+import { useOrderManager } from '../hooks/useOrderManager';
 
-// Componente de produto memorizado
+// Componente de produto memorizado (permanece igual)
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
   return (
     <View style={styles.productCard}>
@@ -92,40 +87,25 @@ const LoadingScreen = memo(() => (
 ));
 
 export default function AddOrderScreen() {
-  // Usar o hook de autenticação
-  const { user, loading: authLoading } = useAuth();
-
-  // Usar o hook de formulário
+  // ✅ AGORA SÓ PRECISA DESSE ÚNICO HOOK!
   const {
     formData: { customerName, address, paymentMethod, dueDate },
-    showDatePicker,
+    products,
+    totalValue,
+    authLoading,
     isSubmitting,
-    setShowDatePicker,
-    setIsSubmitting,
+    showDatePicker,
     setCustomerName,
     setAddress,
     setPaymentMethod,
     setDueDate,
-    resetForm
-  } = useOrderForm();
-
-  // Usar o hook de produtos
-  const { 
-    products, 
-    addProduct, 
-    removeProduct, 
-    updateProduct, 
-    updateQuantity, 
-    resetProducts 
-  } = useProducts();
-
-  // Usar o hook de validação
-  const { validateOrder } = useOrderValidation();
-
-  // Usar o hook de submissão
-  const { submitOrder } = useOrderSubmission();
-
-  const { totalValue } = useOrderCalculator(products);
+    setShowDatePicker,
+    addProduct,
+    removeProduct,
+    updateProduct,
+    updateQuantity,
+    handleSubmitOrder
+  } = useOrderManager();
 
   const onDateChange = useCallback((event, selectedDate) => {
     const currentDate = selectedDate || dueDate;
@@ -134,37 +114,11 @@ export default function AddOrderScreen() {
   }, [dueDate, setDueDate, setShowDatePicker]);
 
   const handleAddOrder = useCallback(async () => {
-    // Validação usando o hook
-    const validation = validateOrder(customerName, address, products);
-    if (!validation.isValid) {
-      Alert.alert('Erro', validation.message);
-      return;
+    const result = await handleSubmitOrder();
+    if (!result.success && result.message) {
+      Alert.alert('Erro', result.message);
     }
-
-    // Preparar dados para o serviço
-    const sanitizedProducts = products.map(p => ({
-      name: p.name,
-      quantity: p.quantity,
-      price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
-    }));
-
-    const orderData = {
-      customerName,
-      address,
-      products: sanitizedProducts,
-      paymentMethod,
-      totalValue: totalValue.raw,
-    };
-
-    // ✅ Apenas adiciona dueDate se for Fiado
-    if (paymentMethod === 'Fiado') {
-      orderData.dueDate = dueDate.toISOString();
-      orderData.pendingValue = totalValue.raw;
-    }
-
-    // ✅ Usar o hook de submissão
-    await submitOrder(orderData, user?.uid, resetForm, resetProducts, setIsSubmitting);
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, validateOrder, user, submitOrder, setIsSubmitting]);
+  }, [handleSubmitOrder]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
@@ -173,7 +127,7 @@ export default function AddOrderScreen() {
         key={product.id}
         product={product}
         index={index}
-        onRemove={products.length > 1 ? removeProduct : undefined}
+        onRemove={removeProduct}
         onChange={updateProduct}
         onQuantityChange={updateQuantity}
         canRemove={products.length > 1}
@@ -226,11 +180,9 @@ export default function AddOrderScreen() {
           <Picker.Item label="Fiado" value="Fiado" />
         </Picker>
 
-        {/* Valor Total (apenas visualização) */}
         <Text style={styles.label}>Valor Total do Pedido</Text>
         <Text style={styles.totalValueText}>{totalValue.formatted}</Text>
 
-        {/* Data de Vencimento apenas para Fiado */}
         {paymentMethod === 'Fiado' && (
           <FiadoSection
             dueDate={dueDate}
@@ -255,6 +207,7 @@ export default function AddOrderScreen() {
   );
 }
 
+// Styles (permanecem exatamente iguais)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
