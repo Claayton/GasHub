@@ -1,15 +1,14 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../services/firebase/config';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderCalculator } from '../hooks/useOrderCalculator';
 import { useProducts } from '../hooks/useProducts';
 import { useOrderForm } from '../hooks/useOrderForm';
 import { useOrderValidation } from '../hooks/useOrderValidation';
 import { orderService } from '../services/orderService';
+import { useAuth } from '../hooks/useAuth';
 
 // Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
@@ -93,7 +92,8 @@ const LoadingScreen = memo(() => (
 ));
 
 export default function AddOrderScreen() {
-  const [isLoading, setIsLoading] = useState(true);
+  // Usar o hook de autenticação (JÁ EXISTE)
+  const { user, loading: authLoading } = useAuth();
 
   // Usar o hook de formulário
   const {
@@ -123,11 +123,6 @@ export default function AddOrderScreen() {
   const { validateOrder } = useOrderValidation();
 
   const { totalValue } = useOrderCalculator(products);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, () => setIsLoading(false));
-    return () => unsubscribe();
-  }, []);
 
   const onDateChange = useCallback((event, selectedDate) => {
     const currentDate = selectedDate || dueDate;
@@ -168,8 +163,8 @@ export default function AddOrderScreen() {
         orderData.pendingValue = totalValue.raw;
       }
 
-      // Usar o service para criar o pedido
-      const result = await orderService.createOrder(orderData);
+      // Usar o service para criar o pedido - AGORA COM user.uid
+      const result = await orderService.createOrder(orderData, user?.uid);
 
       if (result.success) {
         Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
@@ -186,7 +181,7 @@ export default function AddOrderScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting, validateOrder]);
+  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting, validateOrder, user]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
@@ -203,7 +198,8 @@ export default function AddOrderScreen() {
     ))
   ), [products, removeProduct, updateProduct, updateQuantity]);
 
-  if (isLoading) {
+  // ✅ Agora usando authLoading do useAuth
+  if (authLoading) {
     return <LoadingScreen />;
   }
 
