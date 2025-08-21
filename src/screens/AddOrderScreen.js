@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,6 +6,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatCurrency } from '../utils/formatters';
+import { useOrderCalculator } from '../hooks/useOrderCalculator';
 
 
 // Cria produto padrão com um valor inicial de 0
@@ -28,25 +29,12 @@ export default function AddOrderScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { totalValue } = useOrderCalculator(products);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, () => setIsLoading(false));
     return () => unsubscribe();
   }, []);
-
-  // Calcula o valor total do pedido em tempo real
-  const totalValue = useMemo(() => {
-    const sum = products.reduce((acc, product) => {
-      const price = parseFloat(product.price.replace('R$', '').replace(',', '.'));
-      const quantity = parseInt(product.quantity, 10);
-      return acc + (isNaN(price) || isNaN(quantity) ? 0 : price * quantity);
-    }, 0);
-    return sum.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }, [products]);
 
   const handleAddProduct = () => setProducts([...products, createDefaultProduct()]);
 
@@ -110,7 +98,7 @@ export default function AddOrderScreen() {
         address: orderData.address,
         products: sanitizedProducts,
         paymentMethod: orderData.paymentMethod,
-        totalValue: parseFloat(totalValue.replace('R$', '').replace(/\./g, '').replace(',', '.')),
+        totalValue: totalValue.raw,
         timestamp: new Date().toISOString(),
         userId,
         status: 'pendente',
@@ -120,7 +108,7 @@ export default function AddOrderScreen() {
       if (orderData.paymentMethod === 'Fiado') {
         newOrder.dueDate = orderData.dueDate.toISOString();
         // ✅ Para fiados, o pendingValue é igual ao totalValue (valor total que falta pagar)
-        newOrder.pendingValue = parseFloat(totalValue.replace('R$', '').replace(/\./g, '').replace(',', '.'));
+        newOrder.pendingValue = totalValue.raw;
       }
 
       await addDoc(collection(db, 'pedidos'), newOrder);
@@ -259,7 +247,7 @@ export default function AddOrderScreen() {
 
         {/* Valor Total (apenas visualização) */}
         <Text style={styles.label}>Valor Total do Pedido</Text>
-        <Text style={styles.totalValueText}>{totalValue}</Text>
+        <Text style={styles.totalValueText}>{totalValue.formatted}</Text>
 
         {/* Data de Vencimento apenas para Fiado */}
         {orderData.paymentMethod === 'Fiado' && (
