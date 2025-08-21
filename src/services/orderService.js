@@ -1,11 +1,9 @@
 import { collection, addDoc } from 'firebase/firestore';
-import { auth, db } from './firebase/config';
+import { db } from './firebase/config';
 
 export const orderService = {
-  async createOrder(orderData) {
-    try {
-      const userId = auth.currentUser?.uid || 'anonymous';
-      
+  async createOrder(orderData, userId = 'anonymous') {
+    try {      
       const newOrder = {
         ...orderData,
         userId,
@@ -14,13 +12,18 @@ export const orderService = {
       };
 
       const docRef = await addDoc(collection(db, 'pedidos'), newOrder);
-      return { success: true, id: docRef.id };
+      return { 
+        success: true, 
+        id: docRef.id,
+        message: 'Pedido criado com sucesso' 
+      };
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
-      return { success: false, error };
+      return { 
+        success: false, 
+        error,
+        message: 'Erro ao criar pedido' 
+      };
     }
   },
-
-  // Futuramente pode adicionar mais métodos:
-  // getOrders, updateOrder, deleteOrder, etc.
 };
