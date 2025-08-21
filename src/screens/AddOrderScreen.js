@@ -7,8 +7,8 @@ import { useOrderCalculator } from '../hooks/useOrderCalculator';
 import { useProducts } from '../hooks/useProducts';
 import { useOrderForm } from '../hooks/useOrderForm';
 import { useOrderValidation } from '../hooks/useOrderValidation';
-import { orderService } from '../services/orderService';
 import { useAuth } from '../hooks/useAuth';
+import { useOrderSubmission } from '../hooks/useOrderSubmission';
 
 // Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
@@ -92,7 +92,7 @@ const LoadingScreen = memo(() => (
 ));
 
 export default function AddOrderScreen() {
-  // Usar o hook de autenticação (JÁ EXISTE)
+  // Usar o hook de autenticação
   const { user, loading: authLoading } = useAuth();
 
   // Usar o hook de formulário
@@ -122,6 +122,9 @@ export default function AddOrderScreen() {
   // Usar o hook de validação
   const { validateOrder } = useOrderValidation();
 
+  // Usar o hook de submissão
+  const { submitOrder } = useOrderSubmission();
+
   const { totalValue } = useOrderCalculator(products);
 
   const onDateChange = useCallback((event, selectedDate) => {
@@ -131,57 +134,37 @@ export default function AddOrderScreen() {
   }, [dueDate, setDueDate, setShowDatePicker]);
 
   const handleAddOrder = useCallback(async () => {
-    setIsSubmitting(true);
-
     // Validação usando o hook
     const validation = validateOrder(customerName, address, products);
     if (!validation.isValid) {
       Alert.alert('Erro', validation.message);
-      setIsSubmitting(false);
       return;
     }
 
-    try {
-      // Preparar dados para o serviço
-      const sanitizedProducts = products.map(p => ({
-        name: p.name,
-        quantity: p.quantity,
-        price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
-      }));
+    // Preparar dados para o serviço
+    const sanitizedProducts = products.map(p => ({
+      name: p.name,
+      quantity: p.quantity,
+      price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
+    }));
 
-      const orderData = {
-        customerName,
-        address,
-        products: sanitizedProducts,
-        paymentMethod,
-        totalValue: totalValue.raw,
-      };
+    const orderData = {
+      customerName,
+      address,
+      products: sanitizedProducts,
+      paymentMethod,
+      totalValue: totalValue.raw,
+    };
 
-      // ✅ Apenas adiciona dueDate se for Fiado
-      if (paymentMethod === 'Fiado') {
-        orderData.dueDate = dueDate.toISOString();
-        orderData.pendingValue = totalValue.raw;
-      }
-
-      // Usar o service para criar o pedido - AGORA COM user.uid
-      const result = await orderService.createOrder(orderData, user?.uid);
-
-      if (result.success) {
-        Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
-        // Reset form usando as funções dos hooks
-        resetForm();
-        resetProducts();
-      } else {
-        Alert.alert('Erro', 'Não foi possível adicionar o pedido.');
-      }
-
-    } catch (e) {
-      console.error('Erro ao adicionar pedido: ', e);
-      Alert.alert('Erro', 'Não foi possível adicionar o pedido.');
-    } finally {
-      setIsSubmitting(false);
+    // ✅ Apenas adiciona dueDate se for Fiado
+    if (paymentMethod === 'Fiado') {
+      orderData.dueDate = dueDate.toISOString();
+      orderData.pendingValue = totalValue.raw;
     }
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting, validateOrder, user]);
+
+    // ✅ Usar o hook de submissão
+    await submitOrder(orderData, user?.uid, resetForm, resetProducts, setIsSubmitting);
+  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, validateOrder, user, submitOrder, setIsSubmitting]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
@@ -190,7 +173,7 @@ export default function AddOrderScreen() {
         key={product.id}
         product={product}
         index={index}
-        onRemove={removeProduct}
+        onRemove={products.length > 1 ? removeProduct : undefined}
         onChange={updateProduct}
         onQuantityChange={updateQuantity}
         canRemove={products.length > 1}
@@ -198,7 +181,6 @@ export default function AddOrderScreen() {
     ))
   ), [products, removeProduct, updateProduct, updateQuantity]);
 
-  // ✅ Agora usando authLoading do useAuth
   if (authLoading) {
     return <LoadingScreen />;
   }
