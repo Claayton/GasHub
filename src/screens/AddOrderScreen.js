@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { collection, addDoc } from 'firebase/firestore';
-import { auth, db } from '../services/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../services/firebase/config';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderCalculator } from '../hooks/useOrderCalculator';
 import { useProducts } from '../hooks/useProducts';
 import { useOrderForm } from '../hooks/useOrderForm';
+import { useOrderValidation } from '../hooks/useOrderValidation';
+import { orderService } from '../services/orderService';
 
 // Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
@@ -118,6 +119,9 @@ export default function AddOrderScreen() {
     resetProducts 
   } = useProducts();
 
+  // Usar o hook de validação
+  const { validateOrder } = useOrderValidation();
+
   const { totalValue } = useOrderCalculator(products);
 
   useEffect(() => {
@@ -134,59 +138,47 @@ export default function AddOrderScreen() {
   const handleAddOrder = useCallback(async () => {
     setIsSubmitting(true);
 
-    if (!customerName.trim() || !address.trim()) {
-      Alert.alert('Erro', 'Nome do cliente e Endereço são obrigatórios.');
+    // Validação usando o hook
+    const validation = validateOrder(customerName, address, products);
+    if (!validation.isValid) {
+      Alert.alert('Erro', validation.message);
       setIsSubmitting(false);
       return;
     }
 
-    for (const product of products) {
-      if (!product.name || product.quantity < 1) {
-        Alert.alert('Erro', 'Preencha o nome e a quantidade de todos os produtos.');
-        setIsSubmitting(false);
-        return;
-      }
-      if (parseFloat(product.price.replace('R$', '').replace(',', '.')) <= 0) {
-        Alert.alert('Erro', 'O valor de todos os produtos deve ser maior que zero.');
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
     try {
+      // Preparar dados para o serviço
       const sanitizedProducts = products.map(p => ({
         name: p.name,
         quantity: p.quantity,
         price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
       }));
 
-      const userId = auth.currentUser?.uid || 'anonymous';
-
-      const newOrder = {
+      const orderData = {
         customerName,
         address,
         products: sanitizedProducts,
         paymentMethod,
         totalValue: totalValue.raw,
-        timestamp: new Date().toISOString(),
-        userId,
-        status: 'pendente',
       };
 
       // ✅ Apenas adiciona dueDate se for Fiado
       if (paymentMethod === 'Fiado') {
-        newOrder.dueDate = dueDate.toISOString();
-        // ✅ Para fiados, o pendingValue é igual ao totalValue (valor total que falta pagar)
-        newOrder.pendingValue = totalValue.raw;
+        orderData.dueDate = dueDate.toISOString();
+        orderData.pendingValue = totalValue.raw;
       }
 
-      await addDoc(collection(db, 'pedidos'), newOrder);
+      // Usar o service para criar o pedido
+      const result = await orderService.createOrder(orderData);
 
-      Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
-
-      // Reset form usando as funções dos hooks
-      resetForm();
-      resetProducts();
+      if (result.success) {
+        Alert.alert('Sucesso', 'Pedido adicionado com sucesso!');
+        // Reset form usando as funções dos hooks
+        resetForm();
+        resetProducts();
+      } else {
+        Alert.alert('Erro', 'Não foi possível adicionar o pedido.');
+      }
 
     } catch (e) {
       console.error('Erro ao adicionar pedido: ', e);
@@ -194,7 +186,7 @@ export default function AddOrderScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting]);
+  }, [customerName, address, paymentMethod, dueDate, products, totalValue, resetForm, resetProducts, setIsSubmitting, validateOrder]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
