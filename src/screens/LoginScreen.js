@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebaseConfig';
-
+import { auth } from '../services/firebase/config';
+import { useAuth } from '../hooks/useAuth';
+ 
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -15,9 +16,8 @@ export default function LoginScreen({ navigation }) {
     }
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await login(email, password);
       Alert.alert('Sucesso', 'Login efetuado com sucesso!');
-      // navigation.navigate('Home'); // Redireciona para a tela principal
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'E-mail ou senha incorretos. Tente novamente.');

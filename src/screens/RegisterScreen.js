@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebaseConfig';
-
+import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterScreen({ navigation }) {
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { register } = useAuth();
 
   const handleRegister = async () => {
     if (!email || !password) {
@@ -15,7 +15,7 @@ export default function RegisterScreen({ navigation }) {
     }
     
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await register(email, password);
       Alert.alert('Sucesso', 'Usuário criado com sucesso!');
       navigation.navigate('Login'); // Redireciona para a tela de Login
     } catch (error) {
