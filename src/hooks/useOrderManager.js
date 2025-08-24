@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useOrderForm } from './useOrderForm';
 import { useProducts } from './useProducts';
 import { useOrderValidation } from './useOrderValidation';
@@ -14,8 +15,8 @@ export const useOrderManager = () => {
   const { totalValue } = useOrderCalculator(products.products);
   const auth = useAuth();
 
-  // Função de submissão unificada
-  const handleSubmitOrder = async () => {
+  // Função de submissão unificada - CORRIGIDA
+  const handleSubmitOrder = useCallback(async () => {
     const validation = validateOrder(
       orderForm.formData.customerName,
       orderForm.formData.address,
@@ -26,36 +27,61 @@ export const useOrderManager = () => {
       return { success: false, message: validation.message };
     }
 
-    // Preparar dados
-    const sanitizedProducts = products.products.map(p => ({
-      name: p.name,
-      quantity: p.quantity,
-      price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
-    }));
+    try {
+      // Preparar dados
+      const sanitizedProducts = products.products.map(p => ({
+        name: p.name,
+        quantity: p.quantity,
+        price: parseFloat(p.price.replace('R$', '').replace(',', '.')),
+      }));
 
-    const orderData = {
-      customerName: orderForm.formData.customerName,
-      address: orderForm.formData.address,
-      products: sanitizedProducts,
-      paymentMethod: orderForm.formData.paymentMethod,
-      totalValue: totalValue.raw,
-    };
+      const orderData = {
+        customerName: orderForm.formData.customerName,
+        address: orderForm.formData.address,
+        products: sanitizedProducts,
+        paymentMethod: orderForm.formData.paymentMethod,
+        totalValue: totalValue.raw,
+        timestamp: new Date().toISOString(),
+      };
 
-    // Adicionar dados de fiado se necessário
-    if (orderForm.formData.paymentMethod === 'Fiado') {
-      orderData.dueDate = orderForm.formData.dueDate.toISOString();
-      orderData.pendingValue = totalValue.raw;
+      // Adicionar dados de fiado se necessário
+      if (orderForm.formData.paymentMethod === 'Fiado') {
+        orderData.dueDate = orderForm.formData.dueDate.toISOString();
+        orderData.pendingValue = totalValue.raw;
+        orderData.paymentDate = null;
+        orderData.paymentStatus = 'pending';
+      } else {
+        orderData.paymentDate = new Date().toISOString();
+        orderData.pendingValue = 0;
+        orderData.paymentStatus = 'paid';
+      }
+
+      // Submeter - CORRETO: apenas 2 parâmetros
+      const result = await submitOrder(orderData, auth.user?.uid);
+
+      if (result.success) {
+        // ✅ RESETAR FORMULÁRIO APÓS SUCESSO
+        orderForm.resetForm();
+        products.resetProducts();
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('Erro ao submeter pedido:', error);
+      return { 
+        success: false, 
+        message: 'Erro interno ao processar pedido' 
+      };
     }
-
-    // Submeter
-    return await submitOrder(
-      orderData,
-      auth.user?.uid,
-      orderForm.resetForm,
-      products.resetProducts,
-      orderForm.setIsSubmitting
-    );
-  };
+  }, [
+    orderForm, 
+    products, 
+    totalValue.raw, 
+    auth.user, 
+    validateOrder,
+    submitOrder
+  ]);
 
   return {
     // Dados
@@ -82,6 +108,5 @@ export const useOrderManager = () => {
     updateQuantity: products.updateQuantity,
     
     handleSubmitOrder,
-    validateOrder,
   };
 };

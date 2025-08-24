@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { formatCurrency } from '../utils/formatters';
 import { useOrderManager } from '../hooks/useOrderManager';
 
-// Componente de produto memorizado (permanece igual)
+// Componente de produto memorizado
 const ProductItem = memo(({ product, index, onRemove, onChange, onQuantityChange, canRemove }) => {
   return (
     <View style={styles.productCard}>
@@ -86,8 +86,7 @@ const LoadingScreen = memo(() => (
   </View>
 ));
 
-export default function AddOrderScreen() {
-  // ✅ AGORA SÓ PRECISA DESSE ÚNICO HOOK!
+export default function AddOrderScreen({ navigation }) {
   const {
     formData: { customerName, address, paymentMethod, dueDate },
     products,
@@ -115,10 +114,21 @@ export default function AddOrderScreen() {
 
   const handleAddOrder = useCallback(async () => {
     const result = await handleSubmitOrder();
-    if (!result.success && result.message) {
+    
+    if (result.success) {
+      Alert.alert('Sucesso', 'Pedido adicionado com sucesso!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // ✅ REDIRECIONAR PARA A LISTA DE PEDIDOS
+            navigation.navigate('ListOrders');
+          }
+        }
+      ]);
+    } else if (result.message) {
       Alert.alert('Erro', result.message);
     }
-  }, [handleSubmitOrder]);
+  }, [handleSubmitOrder, navigation]);
 
   // Memorizar a lista de produtos renderizada
   const productsList = useMemo(() => (
@@ -199,15 +209,17 @@ export default function AddOrderScreen() {
         onPress={handleAddOrder} 
         disabled={isSubmitting}
       >
-        <Text style={styles.submitButtonText}>
-          {isSubmitting ? 'Adicionando...' : 'Adicionar Pedido'}
-        </Text>
+        {isSubmitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitButtonText}>Adicionar Pedido</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-// Styles (permanecem exatamente iguais)
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -352,6 +364,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
   submitButtonText: {
     color: '#fff',
