@@ -1,5 +1,3 @@
-// src/navigation/AppDrawer.js
-import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -8,6 +6,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import AddOrderScreen from '../screens/AddOrderScreen';
 import ListOrdersScreen from '../screens/ListOrdersScreen';
 import FiadoScreen from '../screens/ReceivablesScreen';
+import DashboardScreen from '../screens/DashboardScreen'; // ✅ NOVA IMPORT
 import CustomDrawerContent from '../components/CustomDrawerContent';
 
 const Drawer = createDrawerNavigator();
@@ -32,6 +31,7 @@ const AppDrawer = () => {
         drawerLabelStyle: { fontSize: 16 },
       })}
     >
+      {/* Telas existentes */}
       <Drawer.Screen
         name="ListOrders"
         component={ListOrdersScreen}
@@ -62,6 +62,17 @@ const AppDrawer = () => {
           ),
         }}
       />
+        {/* ✅ NOVA TELA DASHBOARD - PRIMEIRA POSIÇÃO */}
+        <Drawer.Screen
+          name="Dashboard"
+          component={DashboardScreen}
+          options={{
+            title: 'Dashboard',
+            drawerIcon: ({ color, size }) => (
+              <Icon name="chart-line" size={size} color={color} />
+            ),
+          }}
+        />
     </Drawer.Navigator>
   );
 };
